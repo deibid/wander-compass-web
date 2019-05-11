@@ -14,7 +14,6 @@ const events = require('./events');
 app.use(express.static(path.resolve(__dirname, 'public')));
 
 app.get('/', (req, res) => {
-  // res.send('<h1>Hello David</h1>')
   res.sendFile(__dirname, '/index.html');
 });
 

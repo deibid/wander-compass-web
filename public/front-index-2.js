@@ -50,7 +50,9 @@ function sendEvent() {
 //Size of the hotspots at every intersection in meters
 // const RADIUS_FOR_INTERSECTION_BUFFER = 20 / 1000;
 
-let point1 = turf.point([-73.995044, 40.729716]);
+let point1 = turf.point([-73.984304, 40.727956]);
+
+
 // let point2 = turf.point([-73.994886, 40.729189]);
 // let point3 = turf.point([-73.993946, 40.729001]);
 // let point4 = turf.point([-73.993494, 40.729629]);
@@ -98,16 +100,24 @@ let mActiveIntersectionBuffers = {
   'features': []
 }
 
-// //Map Setup
+// // //Map Setups
+// mapboxgl.accessToken = 'pk.eyJ1IjoiZGF2aWRhemFyIiwiYSI6ImNqdWFrZnk5ODAzbjU0NHBncHMyZ2JpNXUifQ.Kbdt8hM8CJIIryBWPSXczQ';
+// const map = new mapboxgl.Map({
+//   container: 'map',
+//   style: 'mapbox://styles/davidazar/cjukkxnww88nb1fqtgh1ovfmj',
+//   center: [-73.99428794374874, 40.729277133361386],
+//   zoom: 17,
+//   dragPan: false
+// });
+
+
 mapboxgl.accessToken = 'pk.eyJ1IjoiZGF2aWRhemFyIiwiYSI6ImNqdWFrZnk5ODAzbjU0NHBncHMyZ2JpNXUifQ.Kbdt8hM8CJIIryBWPSXczQ';
 const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/davidazar/cjukkxnww88nb1fqtgh1ovfmj',
-  center: [-73.99428794374874, 40.729277133361386],
-  zoom: 17,
-  dragPan: false
+container: 'map',
+style: 'mapbox://styles/davidazar/cjvjxl6tm1o7i1do4dk61ijhd',
+center: [-73.989429, 40.726187],
+zoom: 15.2
 });
-
 
 
 

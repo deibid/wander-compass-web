@@ -1,7 +1,8 @@
 let turf = require('@turf/turf');
 // import * as turf from '@turf/turf';
 // import {nearestPointOnLine} from '@turf/nearest-point-on-line';
-const _mapFeatures = require('./data/mapFeatures-2');
+// const _mapFeatures = require('./data/mapFeatures-2');
+const _mapFeatures = require('./data/mapFeatures-expanded');
 const events = require('./events');
 
 
