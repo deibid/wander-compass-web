@@ -15,7 +15,7 @@ const TOLERANCE_RADIUS_FOR_STREET_WALKED = 5;
 const RADIUS_FOR_INTERSECTION_BUFFER = 30 / 1000;
 
 //Distance to walk from the intersection into a street. Used for directions. (In kilometers)
-const DISTANCE_FROM_INTERSECTION_FOR_BEARING = 5 / 1000;
+const DISTANCE_FROM_INTERSECTION_FOR_BEARING = 30 / 1000;
 
 
 let mStreetLines = getStreetLines(_mapFeatures);
@@ -127,7 +127,12 @@ function enteredBuffer(buffer, fromStreet) {
   // console.log(`From street_.     ${toString(fromStreet)}`);
   // let availableStreets = getAvailableStreetsForDirections(mStreetsWalked, buffer);
 
+  //get the connected streets to the buffer
   let streetsConnectedToIntersection = getStreetsConnectedToIntersection(buffer);
+
+  //calculate the directions of the available streets with regards of how you're entering the buffer
+  let orientationOfConnectedStreets = getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection);
+
   return;
   // let directions = calculateDirectionsViaCenters(availableStreets, fromStreet);
 
@@ -143,6 +148,70 @@ function enteredBuffer(buffer, fromStreet) {
 
 
   mWasInBuffer = true;
+}
+
+
+
+function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection) {
+
+  //generate a temporary street grid with the initial point being the same as the buffer
+
+  let virtualStreets = getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection);
+
+
+  turf.featureEach(virtualStreets, (street, index) => {
+
+    let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
+    print("Along");
+    print(pointAlong);
+  })
+
+
+
+
+}
+
+
+
+/**
+ * Creates a temporary street collection based on the streets connected to a given buffer.
+ * The first coordinate of each street in this collection is the same as the center of the buffer
+ * @param {Intersection buffer where user is standing in} buffer 
+ * @param {Streets connected to that intersection} streetsConnectedToIntersection 
+ */
+function getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection) {
+
+  let bufferCenter = getBufferCenter(buffer);
+  let commonCoords = turf.getCoord(bufferCenter);
+
+  print('common coords');
+  print(commonCoords);
+
+  let streets = [];
+
+
+  //Flip the coordinates of the streets to start with the coordinate that matches the center of the buffer.
+  turf.featureEach(streetsConnectedToIntersection, (street, index) => {
+    let streetCoords = turf.getCoords(street);
+    let p1 = streetCoords[0];
+    let p2 = streetCoords[1];
+
+    let startingCoords;
+    let endingCoords;
+
+    if (isSameCoords(commonCoords, p1)) {
+      startingCoords = p1;
+      endingCoords = p2;
+    } else {
+      startingCoords = p2;
+      endingCoords = p1;
+    }
+    streets.push(turf.lineString([startingCoords, endingCoords]));
+  });
+
+
+  return turf.featureCollection(streets);
+
 }
 
 
@@ -163,20 +232,15 @@ function getStreetsConnectedToIntersection(buffer) {
     let streetP1 = streetCoords[0];
     let streetP2 = streetCoords[1];
 
-    if (isSamePoint(streetP1, bufferCenterCoords) || isSamePoint(streetP2, bufferCenterCoords)) {
+    if (isSameCoords(streetP1, bufferCenterCoords) || isSameCoords(streetP2, bufferCenterCoords)) {
       // console.log(`Encontre puntos iguales al buffer center`);
       // console.log(`Buffer Center> ${toString(bufferCenter)}`);
       // console.log(`Street> ${toString(street)}`);  
       connectedStreets.push(street);
     }
-
-
-
   });
 
-  console.log(`Connected Streets-\n${toString(turf.featureCollection(connectedStreets))}`);
-
-
+  return turf.featureCollection(connectedStreets);
 
 }
 
@@ -674,6 +738,15 @@ function getIntersections(_mapFeatures) {
 }
 
 
+function print(msg) {
+
+  if (typeof msg === 'object') {
+    console.log(toString(msg));
+  } else {
+    console.log(msg);
+  }
+
+}
 
 function toString(Object) {
   return JSON.stringify(Object, null, null);
@@ -697,7 +770,7 @@ function getBufferCenter(buffer) {
 }
 
 
-function isSamePoint(p1, p2) {
+function isSameCoords(p1, p2) {
 
   let p1_lng = p1[0];
   let p1_lat = p1[1];
