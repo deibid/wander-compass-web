@@ -1,4 +1,5 @@
 module.exports = {
+
   "type": "FeatureCollection",
   "features": [
     {
@@ -1113,23 +1114,6 @@ module.exports = {
         "type": "LineString",
         "coordinates": [
           [
-            -73.991234,
-            40.727726
-          ],
-          [
-            -73.991184,
-            40.727705
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {},
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
             -73.981437,
             40.723633
           ],
@@ -1612,23 +1596,6 @@ module.exports = {
           [
             -73.986163,
             40.726398
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {},
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -73.988638,
-            40.722933
-          ],
-          [
-            -73.988595,
-            40.722996
           ]
         ]
       }

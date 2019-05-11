@@ -67,11 +67,12 @@ module.exports.onNewLocation = function (msg) {
 
   //Get the closest line on a MapBox street from the Point
   //Find the nearest point inside a street to snap to
-
-  let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
-
+  // let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
   // let closestStreet = closestLineToPoint(liveLocationPoint, mStreetLines);
-  let snappedLocation = turf.nearestPointOnLine(closestStreet, liveLocationPoint, { 'units': 'kilometers' });
+  // let snappedLocation = turf.nearestPointOnLine(closestStreet, liveLocationPoint, { 'units': 'kilometers' });
+
+  let snappedLocation = getSnappedLocation(liveLocationPoint);
+  let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
 
   let markers = {
     'real': turf.getCoords(liveLocationPoint),
@@ -79,6 +80,9 @@ module.exports.onNewLocation = function (msg) {
   };
   io.emit(events.SEND_LOCATION_MARKERS, markers);
 
+  /**
+   * Estamos usando datos sin nombres de calles, muchas cosas estarán rotas un rato.
+   */
   let streetName = getFeatureName(closestStreet);
   io.emit(events.DISPLAY_STREET, streetName);
 
@@ -145,6 +149,26 @@ module.exports.onNewLocation = function (msg) {
     mWasInBuffer = false;
     // UI.displayActiveIntersection("-");
   }
+}
+
+
+function getSnappedLocation(point) {
+
+  let closestStreet;
+  let shortestDistance = 99999999;
+
+  turf.featureEach(_mapFeatures, (currentLine, lineIndex) => {
+
+    let currentDistance = turf.pointToLineDistance(point, currentLine, { 'units': 'meters' });
+    if (currentDistance < shortestDistance) {
+      closestStreet = currentLine;
+      shortestDistance = currentDistance;
+    }
+  });
+
+
+  return turf.nearestPointOnLine(closestStreet, point, { 'units': 'meters' });
+
 }
 
 
@@ -471,13 +495,17 @@ function findContainingBuffer(snappedLocation) {
 
 function findIntersectionBuffers(street) {
 
+
+  console.log(`findIntersectionBuffers\ncalle->> ${toString(street)}`);
+
   //find the Points from the collection that match the street that is being walked
-  let streetIntersections = getIntersectionsForStreet(street);
+  // let streetIntersections = getIntersectionsForStreetByName(street);
+  let streetIntersections = getStreetCornerPoints(street);
 
   let pointA = streetIntersections[0];
   let pointB = streetIntersections[1];
 
-  // console.log(`Antes de hacer el buffer. Los puntos son: __> ${toString(pointA)} \n y ${toString(pointB)}`)
+  console.log(`Antes de hacer el buffer. Los puntos son: __> ${toString(pointA)} \n y ${toString(pointB)}`)
 
 
   let bufferA = turf.buffer(pointA, RADIUS_FOR_INTERSECTION_BUFFER, { 'units': 'kilometers' });
@@ -497,11 +525,43 @@ function showIntersectionBuffers() {
   // map.getSource('intersectionBuffers').setData(mActiveIntersectionBuffers);
 }
 
+
+
 /**
 * Finds the two Point features that correspond to that street
 * @param {Street being walked} street 
 */
-function getIntersectionsForStreet(street) {
+function getStreetCornerPoints(street) {
+
+
+  let coords = turf.getCoords(street);
+  let pointA = turf.point(coords[0]);
+  let pointB = turf.point(coords[1]);
+
+  return [pointA, pointB];
+
+  // return 
+
+  // console.log(`getIntersectionForStreet`);
+  // console.log(`Street Name ${toString(street)}`);
+  // console.log(`mIntersections ${toString(mIntersections)}`);
+  let streetName = street.properties.name;
+  let streetIntersections = [];
+  mIntersections.features.forEach(intersection => {
+    if (intersection.properties.streets.indexOf(streetName) !== -1) {
+      streetIntersections.push(intersection);
+    };
+  });
+
+  return streetIntersections;
+}
+
+
+/**
+* Finds the two Point features that correspond to that street
+* @param {Street being walked} street 
+*/
+function getIntersectionsForStreetByName(street) {
 
 
   // console.log(`getIntersectionForStreet`);
@@ -570,7 +630,7 @@ function walkStreet(street) {
 function closestLineToPoint(_point, _mapFeatures) {
 
   let closestLine;
-  let shortestDistance = 1000;
+  let shortestDistance = 999999;
 
   // console.log("antes de revisar");
   // console.log(`mStreetLines:> ${toString(mStreetLines)}`);
