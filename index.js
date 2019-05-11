@@ -31,7 +31,7 @@ io.on('connection', (socket) => {
   socket.on(events.NEW_LOCATION, (msg) => {
 
     //TODO> Pass the code to the backend
-    console.log(`New location from phone ${JSON.stringify(msg, null, null)}`);
+    // console.log(`New location from phone ${JSON.stringify(msg, null, null)}`);
     geo.onNewLocation(msg);
     // geo.onNewLocation();
     // io.emit(EVENT_NEW_LOCATION, msg);

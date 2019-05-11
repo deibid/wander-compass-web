@@ -9,15 +9,14 @@ const events = require('./events');
 let io;
 
 //Distance in meters between a location point and the center of the street to count it as walked
-const TOLERANCE_RADIUS_FOR_STREET_WALKED = 2.5;
+const TOLERANCE_RADIUS_FOR_STREET_WALKED = 5;
 
 //Size of the hotspots at every intersection in meters
-const RADIUS_FOR_INTERSECTION_BUFFER = 20 / 1000;
+const RADIUS_FOR_INTERSECTION_BUFFER = 30 / 1000;
 
 //Distance to walk from the intersection into a street. Used for directions. (In kilometers)
 const DISTANCE_FROM_INTERSECTION_FOR_BEARING = 5 / 1000;
 
-let point1 = turf.point([-73.995044, 40.729716]);
 
 let mStreetLines = getStreetLines(_mapFeatures);
 let mIntersections = getIntersections(_mapFeatures);
@@ -46,6 +45,7 @@ let mActiveIntersectionBuffers = {
 
 module.exports.attachIO = function (_io) {
   io = _io;
+
 }
 
 module.exports.test = () => {
@@ -56,98 +56,47 @@ module.exports.test = () => {
 module.exports.onNewLocation = function (msg) {
 
 
-  //get a MapBox object with coordinates
-  // let liveLocation = liveLocationMarker.getLngLat();
+  //Create a Turf.js Point with the new location data
+  let liveLocationPoint = turf.point([msg.lng, msg.lat]);
 
-  //Parse and create a Turf.js Point with the new location data
-  let liveLng = msg.lng;
-  let liveLat = msg.lat;
-  let liveLocationPoint = turf.point([liveLng, liveLat]);
-
-
-  //Get the closest line on a MapBox street from the Point
-  //Find the nearest point inside a street to snap to
-  // let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
-  // let closestStreet = closestLineToPoint(liveLocationPoint, mStreetLines);
-  // let snappedLocation = turf.nearestPointOnLine(closestStreet, liveLocationPoint, { 'units': 'kilometers' });
-
-  let snappedLocation = getSnappedLocation(liveLocationPoint);
+  //Find the closest street to the coordinate received
   let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
 
-  let markers = {
-    'real': turf.getCoords(liveLocationPoint),
-    'snapped': turf.getCoords(snappedLocation)
-  };
-  io.emit(events.SEND_LOCATION_MARKERS, markers);
-
-  /**
-   * Estamos usando datos sin nombres de calles, muchas cosas estarán rotas un rato.
-   */
-  let streetName = getFeatureName(closestStreet);
-  io.emit(events.DISPLAY_STREET, streetName);
+  //Create a new snapped location to the closest street
+  let snappedLocation = getSnappedLocation(liveLocationPoint);
 
 
-  //Show the snapped point on the MapBox map
-  // snappedLocationMarker.setLngLat(turf.getCoords(snappedLocation));
+  //(broadcast functions) - publish changes so that the web client can update the UI
+  broadcastLocationMarkers(liveLocationPoint, snappedLocation);
+  broadcastStreetName(closestStreet);
+  broadcastLocationCoordinates(snappedLocation);
 
-  let snappedLocationCoords = turf.getCoords(snappedLocation);
-  // console.log(`snapped Location Coords ${snappedLocationCoords}`);
+  let streetCenter = turf.center(closestStreet);
+  broadcastStreetCenter(streetCenter);
 
-  io.emit(events.DISPLAY_LOCATION, snappedLocationCoords);
-  // UI.displayLocation(snappedLocationMarker.getLngLat());
-
-
-  let lineCenter = turf.center(closestStreet);
-  showStreetCenter(lineCenter);
-
-  if (Math.abs(distanceBetween(lineCenter, snappedLocation)) < TOLERANCE_RADIUS_FOR_STREET_WALKED) {
+  if (Math.abs(distanceBetween(streetCenter, snappedLocation)) < TOLERANCE_RADIUS_FOR_STREET_WALKED) {
     walkStreet(closestStreet);
   }
 
-  showWalkedStreets();
+  broadcastWalkedStreets();
 
-  findIntersectionBuffers(closestStreet);
-  showIntersectionBuffers(closestStreet);
+  mActiveIntersectionBuffers = getIntersectionBuffers(closestStreet);
+  broadcastIntersectionBuffers();
 
-  let containingBuffer = findContainingBuffer(snappedLocation);
-  if (containingBuffer !== undefined) {
-    // UI.displayActiveIntersection(getFeatureName(containingBuffer));
-    io.emit(events.DISPLAY_ACTIVE_BUFFER, getFeatureName(containingBuffer));
+  let containingBuffer = getContainingBuffer(snappedLocation);
 
-    // let directions = {
-    //   "bufferName": getFeatureName(containingBuffer),
-    //   "directions": {
-    //     "right": true,
-    //     "left": false,
-    //     "straight": true
-    //   }
-    // };
-
-    // io.emit(events.SEND_DIRECTIONS, directions);
-
-
-    // ARREGLAR ESTO
-    // enteredIntersectionBuffer(containingBuffer, closestStreet);
-  }
-
-
-  //A lo mejor hay errores de logica en eventos de entrar o salir del buffer. Eso se arregla con los ifs de esta seccion
-
-  //Enter buffer
+  //Enter buffer event
   if (!mWasInBuffer && containingBuffer !== undefined) {
-
-    enteredIntersectionBuffer(containingBuffer, closestStreet);
-
-
-
-
+    console.log("Entered Buffer");
+    mWasInBuffer = true;
+    broadcastContainingBuffer(containingBuffer);
+    enteredBuffer(containingBuffer, closestStreet);
   }
 
-  //Exit buffer
+  //Exit buffer event
   if (mWasInBuffer && containingBuffer === undefined) {
-    // console.log(`Exited Buffer`);
+    console.log(`Exited Buffer`);
     mWasInBuffer = false;
-    // UI.displayActiveIntersection("-");
   }
 }
 
@@ -172,12 +121,14 @@ function getSnappedLocation(point) {
 }
 
 
-function enteredIntersectionBuffer(buffer, fromStreet) {
+function enteredBuffer(buffer, fromStreet) {
 
   // console.log(`Entered Buffer ${toString(buffer)}`);
   // console.log(`From street_.     ${toString(fromStreet)}`);
+  // let availableStreets = getAvailableStreetsForDirections(mStreetsWalked, buffer);
 
-  let availableStreets = getAvailableStreetsForDirections(mStreetsWalked, buffer);
+  let streetsConnectedToIntersection = getStreetsConnectedToIntersection(buffer);
+  return;
   // let directions = calculateDirectionsViaCenters(availableStreets, fromStreet);
 
   let directions = calculateDirectionsViaHardData(availableStreets, fromStreet);
@@ -192,6 +143,41 @@ function enteredIntersectionBuffer(buffer, fromStreet) {
 
 
   mWasInBuffer = true;
+}
+
+
+
+function getStreetsConnectedToIntersection(buffer) {
+
+  //get buffer coords.
+  //compare against everything and see what can be found.
+
+  let bufferCenter = getBufferCenter(buffer);
+  let bufferCenterCoords = turf.getCoord(bufferCenter);
+
+  let connectedStreets = [];
+
+  turf.featureEach(_mapFeatures, (street, index) => {
+
+    let streetCoords = turf.getCoords(street);
+    let streetP1 = streetCoords[0];
+    let streetP2 = streetCoords[1];
+
+    if (isSamePoint(streetP1, bufferCenterCoords) || isSamePoint(streetP2, bufferCenterCoords)) {
+      // console.log(`Encontre puntos iguales al buffer center`);
+      // console.log(`Buffer Center> ${toString(bufferCenter)}`);
+      // console.log(`Street> ${toString(street)}`);  
+      connectedStreets.push(street);
+    }
+
+
+
+  });
+
+  console.log(`Connected Streets-\n${toString(turf.featureCollection(connectedStreets))}`);
+
+
+
 }
 
 function convertDirectionsToCommand(directions) {
@@ -474,7 +460,7 @@ function getAvailableStreets() {
 }
 
 
-function findContainingBuffer(snappedLocation) {
+function getContainingBuffer(snappedLocation) {
 
   let bufferA = mActiveIntersectionBuffers.features[0];
   let bufferB = mActiveIntersectionBuffers.features[1];
@@ -493,10 +479,10 @@ function findContainingBuffer(snappedLocation) {
 
 }
 
-function findIntersectionBuffers(street) {
+function getIntersectionBuffers(street) {
 
 
-  console.log(`findIntersectionBuffers\ncalle->> ${toString(street)}`);
+  // console.log(`findIntersectionBuffers\ncalle->> ${toString(street)}`);
 
   //find the Points from the collection that match the street that is being walked
   // let streetIntersections = getIntersectionsForStreetByName(street);
@@ -505,25 +491,23 @@ function findIntersectionBuffers(street) {
   let pointA = streetIntersections[0];
   let pointB = streetIntersections[1];
 
-  console.log(`Antes de hacer el buffer. Los puntos son: __> ${toString(pointA)} \n y ${toString(pointB)}`)
+  // console.log(`Antes de hacer el buffer. Los puntos son: __> ${toString(pointA)} \n y ${toString(pointB)}`)
 
 
   let bufferA = turf.buffer(pointA, RADIUS_FOR_INTERSECTION_BUFFER, { 'units': 'kilometers' });
   let bufferB = turf.buffer(pointB, RADIUS_FOR_INTERSECTION_BUFFER, { 'units': 'kilometers' });
 
 
+
   let result = turf.featureCollection([bufferA, bufferB]);
 
-  mActiveIntersectionBuffers = result;
+  return result;
 
 
 }
 
 
-function showIntersectionBuffers() {
-  io.emit(events.DISPLAY_INTERSECTION_BUFFERS, mActiveIntersectionBuffers);
-  // map.getSource('intersectionBuffers').setData(mActiveIntersectionBuffers);
-}
+
 
 
 
@@ -579,26 +563,14 @@ function getIntersectionsForStreetByName(street) {
 }
 
 
-function showStreetCenter(point) {
 
-  mActiveStreetCenter.geometry.coordinates = turf.getCoord(point);
-  // map.getSource('streetCenter').setData(mActiveStreetCenter);
-  io.emit(events.SHOW_STREET_CENTER, mActiveStreetCenter);
 
-}
 
-//Update the layer data to show the saved streets
-function showWalkedStreets() {
-  // console.log(`show walked streets ${toString(mStreetsWalked)}`);
-  io.emit(events.DISPLAY_WALKED_STREETS, mStreetsWalked);
-  // map.getSource('walkedStreets').setData(mStreetsWalked);
-}
 
 
 
 //Save street in walked database
 function walkStreet(street) {
-
   //If streets is not walked, add it to db.
   //TODO replace this with API endpoint
   if (mStreetsWalked.features.indexOf(street) === -1)
@@ -606,25 +578,6 @@ function walkStreet(street) {
 }
 
 
-
-
-// let i = 0;
-// let points = turf.getCoords(multiPoints);
-
-// map.on('click', (e) => {
-//     let p = points[i];
-//     liveLocationMarker.setLngLat(p);
-//     i++;
-//     if (i >= points.length)
-//         i = 0;
-
-//     let closestLine = closestLineToPoint(p, _mapFeatures);
-//     let snapped = turf.nearestPointOnLine(closestLine, p, { 'units': 'meters' });
-
-//     snappedLocationMarker.setLngLat(turf.getCoords(snapped));
-
-
-// });
 
 
 function closestLineToPoint(_point, _mapFeatures) {
@@ -732,4 +685,76 @@ function distanceBetween(point1, point2) {
 }
 
 
+//Get the center and round it to 6 decimal points
+function getBufferCenter(buffer) {
+
+  let center = turf.center(buffer);
+  let lng = turf.getCoord(center)[0];
+  let lat = turf.getCoord(center)[1];
+
+  return turf.point([turf.round(lng, 6), turf.round(lat, 6)]);
+
+}
+
+
+function isSamePoint(p1, p2) {
+
+  let p1_lng = p1[0];
+  let p1_lat = p1[1];
+
+  let p2_lng = p2[0];
+  let p2_lat = p2[1];
+
+  return (p1_lng === p2_lng && p1_lat === p2_lat) ? true : false;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+function broadcastLocationMarkers(live, snapped) {
+  let markers = {
+    'real': turf.getCoords(live),
+    'snapped': turf.getCoords(snapped)
+  };
+  io.emit(events.SEND_LOCATION_MARKERS, markers);
+}
+
+function broadcastStreetName(street) {
+  let streetName = getFeatureName(street);
+  io.emit(events.DISPLAY_STREET, streetName);
+}
+
+
+function broadcastLocationCoordinates(location) {
+  let snappedLocationCoords = turf.getCoords(location);
+  io.emit(events.DISPLAY_LOCATION, snappedLocationCoords);
+}
+
+function broadcastStreetCenter(point) {
+  mActiveStreetCenter.geometry.coordinates = turf.getCoord(point);
+  io.emit(events.SHOW_STREET_CENTER, mActiveStreetCenter);
+}
+
+//Update the layer data to show the saved streets
+function broadcastWalkedStreets() {
+  // console.log(`show walked streets ${toString(mStreetsWalked)}`);
+  io.emit(events.DISPLAY_WALKED_STREETS, mStreetsWalked);
+  // map.getSource('walkedStreets').setData(mStreetsWalked);
+}
+
+function broadcastIntersectionBuffers() {
+  io.emit(events.DISPLAY_INTERSECTION_BUFFERS, mActiveIntersectionBuffers);
+}
+
+function broadcastContainingBuffer(containingBuffer) {
+  io.emit(events.DISPLAY_ACTIVE_BUFFER, getFeatureName(containingBuffer));
+}
 

@@ -57,16 +57,6 @@ let mActiveIntersectionBuffers = {
   'features': []
 }
 
-// // //Map Setups
-// mapboxgl.accessToken = 'pk.eyJ1IjoiZGF2aWRhemFyIiwiYSI6ImNqdWFrZnk5ODAzbjU0NHBncHMyZ2JpNXUifQ.Kbdt8hM8CJIIryBWPSXczQ';
-// const map = new mapboxgl.Map({
-//   container: 'map',
-//   style: 'mapbox://styles/davidazar/cjukkxnww88nb1fqtgh1ovfmj',
-//   center: [-73.99428794374874, 40.729277133361386],
-//   zoom: 17,
-//   dragPan: false
-// });
-
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZGF2aWRhemFyIiwiYSI6ImNqdWFrZnk5ODAzbjU0NHBncHMyZ2JpNXUifQ.Kbdt8hM8CJIIryBWPSXczQ';
 const map = new mapboxgl.Map({
@@ -78,8 +68,10 @@ const map = new mapboxgl.Map({
 
 
 
+//Add the data layers when the map loads
 map.on('load', () => {
-  //Add the walked streets layer
+
+
   map.addLayer({
     "id": "walkedStreets",
     "type": "line",
@@ -132,8 +124,8 @@ let liveLocationMarker = new mapboxgl.Marker({ draggable: 'true' })
 
 //Marker for snapped location
 let snappedLocationMarker = new mapboxgl.Marker({ "color": "#FA77C3" }).setLngLat([0, 0]).addTo(map);
+
 //Add event listener for when dragging or receiving location from server
-// liveLocationMarker.on('drag')//, onNewLocation);
 liveLocationMarker.on('drag', onNewLocation);
 
 
@@ -141,33 +133,15 @@ liveLocationMarker.on('drag', onNewLocation);
 // Function executed when dragging. This will get changed to a live location pushed from the phone
 function onNewLocation() {
 
-  // console.log("Drag");
-
   //get a MapBox object with coordinates
   let liveLocation = liveLocationMarker.getLngLat();
-  console.log("New Location");
-  console.log(liveLocation);
 
   //Parse and create a Turf.js Point with the new location data
   let liveLng = liveLocation.lng;
   let liveLat = liveLocation.lat;
 
+  //Send location to server
   socket.emit("new-location-from-phone", { "lng": liveLng, "lat": liveLat });
-  return;
-
-  let liveLocationPoint = turf.point([liveLng, liveLat]);
-
-  //Get the closest line on a MapBox street from the Point
-  //Find the nearest point inside a street to snap to
-  // let closestStreet = closestLineToPoint(liveLocationPoint, _mapFeatures);
-  // let snappedLocation = turf.nearestPointOnLine(closestStreet, liveLocationPoint, { 'units': 'meters' });
-
-  let snappedLocation = getSnappedLocation(liveLocationPoint);
-
-  let snappedLng = turf.getCoord(snappedLocation)[0];
-  let snappedLat = turf.getCoord(snappedLocation)[1];
-
-  socket.emit("new-location-from-phone", { "lng": snappedLng, "lat": snappedLat });
 
 }
 
