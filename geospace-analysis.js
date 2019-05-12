@@ -4,6 +4,7 @@ let turf = require('@turf/turf');
 // const _mapFeatures = require('./data/mapFeatures-2');
 const _mapFeatures = require('./data/mapFeatures-expanded');
 const events = require('./events');
+const _ = require("underscore");
 
 
 let io;
@@ -133,7 +134,10 @@ function enteredBuffer(buffer, fromStreet) {
   //calculate the directions of the available streets with regards of how you're entering the buffer
   let orientationOfConnectedStreets = getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection);
 
+
+
   return;
+
   // let directions = calculateDirectionsViaCenters(availableStreets, fromStreet);
 
   let directions = calculateDirectionsViaHardData(availableStreets, fromStreet);
@@ -145,8 +149,6 @@ function enteredBuffer(buffer, fromStreet) {
     io.emit(events.SEND_DIRECTIONS, command);
   }
 
-
-
   mWasInBuffer = true;
 }
 
@@ -157,13 +159,38 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   //generate a temporary street grid with the initial point being the same as the buffer
 
   let virtualStreets = getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection);
+  let virtualFromStreet = convertStreetToVirtualStreet(buffer, fromStreet);
 
+  print("VFS")
+  print(virtualFromStreet);
+  // print("From Street");
+  // print(fromStreet);
+
+  // print("Virtual Streets");
+  // print(virtualStreets);
+
+  // print("Buffer center");
+  // print(getBufferCenter(buffer));
 
   turf.featureEach(virtualStreets, (street, index) => {
 
-    let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
-    print("Along");
-    print(pointAlong);
+    // print("Comparing street\n");
+    // print("virtualFromStreet");
+    // print(virtualFromStreet);
+    // print("\nstreet to compare");
+    // print(street);
+    // print('\n');
+
+    //Included underscore lib to help out
+    if (_.isEqual(virtualFromStreet, street)) {
+      print("Tengo la calle identica");
+      print(street);
+    }
+    // let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
+
+    // print("Along");
+    // print(pointAlong);
+
   })
 
 
@@ -171,6 +198,35 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
 
 }
 
+
+
+/**
+ * 
+ * @param {turf.buffer} buffer Intersection buffer to take as reference
+ * @param {turf.lineString} street Street to orient with regards of buffer
+ */
+function convertStreetToVirtualStreet(buffer, street) {
+
+  let bufferCenter = getBufferCenter(buffer);
+  let commonCoords = turf.getCoord(bufferCenter);
+
+  let streetCoords = turf.getCoords(street);
+  // print("Converting to virtual street");
+  // print(commonCoords);
+  // print(streetCoords);
+  // print("\n\n");
+  let startPoint;
+  let endPoint;
+
+  if (commonCoords[0] === streetCoords[0][0] && commonCoords[1] === streetCoords[0][1]) {
+    return street;
+  } else {
+    startPoint = streetCoords[1];
+    endPoint = streetCoords[0];
+    return turf.lineString([startPoint, endPoint]);
+  }
+
+}
 
 
 /**
@@ -183,9 +239,6 @@ function getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection
 
   let bufferCenter = getBufferCenter(buffer);
   let commonCoords = turf.getCoord(bufferCenter);
-
-  print('common coords');
-  print(commonCoords);
 
   let streets = [];
 

@@ -13,7 +13,8 @@
   "dependencies": {
     "@turf/turf": "^5.1.6",
     "express": "^4.16.4",
-    "socket.io": "^2.2.0"
+    "socket.io": "^2.2.0",
+    "underscore": "^1.9.1"
   },
   "repository": {
     "type": "git",
