@@ -229,9 +229,18 @@ function getDirectionsForBearings(travelDirections, bearings) {
         break;
 
       case orientation.SOUTH:
+
+        if (inRange(bearing, 163)) directions.push(orientation.LEFT);
+        if (inRange(bearing, -150)) directions.push(orientation.STRAIGHT);
+        if (inRange(bearing, -106)) directions.push(orientation.RIGHT);
+
         break;
 
       case orientation.WEST:
+
+        if (inRange(bearing, -105)) directions.push(orientation.LEFT);
+        if (inRange(bearing, -61)) directions.push(orientation.STRAIGHT);
+        if (inRange(bearing, -16)) directions.push(orientation.RIGHT);
         break;
 
     }
