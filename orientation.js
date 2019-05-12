@@ -2,7 +2,8 @@ module.exports = {
   NORTH: 'north',
   EAST: 'east',
   SOUTH: 'south',
-  WEST: 'west'
-
-
+  WEST: 'west',
+  STRAIGHT: 'straight',
+  RIGHT: 'right',
+  LEFT: 'left'
 }

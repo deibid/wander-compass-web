@@ -123,10 +123,6 @@ function getSnappedLocation(point) {
 function enteredBuffer(buffer, fromStreet) {
 
 
-  // console.log(`Entered Buffer ${toString(buffer)}`);
-  // console.log(`From street_.     ${toString(fromStreet)}`);
-  // let availableStreets = getAvailableStreetsForDirections(mStreetsWalked, buffer);
-
   //get the connected streets to the buffer
   let streetsConnectedToIntersection = getStreetsConnectedToIntersection(buffer);
 
@@ -161,54 +157,94 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   let virtualStreets = getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection);
   let virtualFromStreet = convertStreetToVirtualStreet(buffer, fromStreet);
 
-  getTravelDirection(buffer, virtualFromStreet);
 
-
-  // print("From Street");
-  // print(fromStreet);
-
-  // print("Virtual Streets");
-  // print(virtualStreets);
-
-  // print("Buffer center");
-  // print(getBufferCenter(buffer));
 
   let pointAlongFromStreet = turf.along(virtualFromStreet, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
   let bearings = [];
 
   let debug_b = {};
   turf.featureEach(virtualStreets, (street, index) => {
-
-
-
     //Dont calculate angles for the street you are walking on
     if (_.isEqual(virtualFromStreet, street)) {
       return;
     }
+
+    //Todo, Add filter for walked streets here:
+    //......if(walkedStreet) return;
 
     print(index);
     let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
 
     let bearing = turf.bearing(pointAlongFromStreet, pointAlong);
 
-    street.properties.id = index;
-    street.properties.bearing = bearing;
-    bearings.push(street);
-    // print("Along");
-    // print(pointAlong);
-
-    debug_b[index] = bearing;
+    // street.properties.id = index;
+    // street.properties.bearing = bearing;
+    // bearings.push(street);
+    // debug_b[index] = bearing;
+    bearings.push(bearing);
 
   });
 
-  // print('bearings');
-  let collection = turf.featureCollection(bearings);
-  // print(collection);
+  print('bearings');
+  print(bearings);
 
-  // print("\n\ndebug");
-  // print(debug_b);
+  let travelDirection = getTravelDirection(buffer, virtualFromStreet);
+
+  let bearingDirections = getDirectionsForBearings(travelDirection, bearings);
+
+  print("bearing directions");
+  print(bearingDirections);
 
 
+
+
+}
+
+
+function getDirectionsForBearings(travelDirections, bearings) {
+
+
+  let directions = [];
+  print("TRAVEL DIRECTIONS");
+  print(travelDirections);
+  bearings.forEach(bearing => {
+
+    switch (travelDirections) {
+
+      case orientation.NORTH:
+
+        print("travel north");
+        if (inRange(bearing, -15)) directions.push(orientation.LEFT);
+        if (inRange(bearing, 29)) directions.push(orientation.STRAIGHT);
+        if (inRange(bearing, -74)) directions.push(orientation.RIGHT);
+
+        break;
+
+      case orientation.EAST:
+        break;
+
+      case orientation.SOUTH:
+        break;
+
+      case orientation.WEST:
+        break;
+
+    }
+
+  });
+
+  return directions;
+
+
+}
+
+
+
+function inRange(number, centerOfRange) {
+
+  let range = 5;
+
+  return (Math.abs(number) <= Math.abs(centerOfRange) + range && Math.abs(number) >= Math.abs(centerOfRange) - range) ? true : false;
 
 
 }
@@ -851,8 +887,6 @@ function isSameCoords(p1, p2) {
 
 
 function getTravelDirection(buffer, fromStreet) {
-
-
   let streetPoint = turf.along(fromStreet, 20 / 1000, { units: 'kilometers' });
   let bufferCenter = getBufferCenter(buffer);
 
@@ -878,45 +912,10 @@ function getTravelDirection(buffer, fromStreet) {
   }
 
 
-  // print("Travel direction");
+  print("Travel direction");
   print(travelDirection);
-
-  return;
-
-
-  let p1 = {
-    x: 40.728233,
-    y: -73.986820
-  };
-
-  let p2 = {
-    x: 40.727826,
-    y: -73.985779
-  };
-
-
-  var p12 = Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2));
-
-  //angle in radians
-  var resultRadian = Math.acos(Math.pow(p12, 2));
-
-  //angle in degrees
-  var resultDegree = Math.acos((Math.pow(p12, 2))) * 180 / Math.PI;
-
-  print("Travel angle");
-  print(resultRadian);
-  print(resultDegree);
-
-
+  return travelDirection;
 }
-
-
-
-
-
-
-
-
 
 
 function broadcastLocationMarkers(live, snapped) {
