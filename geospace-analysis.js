@@ -1,9 +1,7 @@
 let turf = require('@turf/turf');
-// import * as turf from '@turf/turf';
-// import {nearestPointOnLine} from '@turf/nearest-point-on-line';
-// const _mapFeatures = require('./data/mapFeatures-2');
 const _mapFeatures = require('./data/mapFeatures-expanded');
 const events = require('./events');
+const orientation = require('./orientation');
 const _ = require("underscore");
 
 
@@ -124,6 +122,7 @@ function getSnappedLocation(point) {
 
 function enteredBuffer(buffer, fromStreet) {
 
+
   // console.log(`Entered Buffer ${toString(buffer)}`);
   // console.log(`From street_.     ${toString(fromStreet)}`);
   // let availableStreets = getAvailableStreetsForDirections(mStreetsWalked, buffer);
@@ -156,13 +155,15 @@ function enteredBuffer(buffer, fromStreet) {
 
 function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection) {
 
+
   //generate a temporary street grid with the initial point being the same as the buffer
 
   let virtualStreets = getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection);
   let virtualFromStreet = convertStreetToVirtualStreet(buffer, fromStreet);
 
-  print("VFS")
-  print(virtualFromStreet);
+  getTravelDirection(buffer, virtualFromStreet);
+
+
   // print("From Street");
   // print(fromStreet);
 
@@ -172,26 +173,40 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   // print("Buffer center");
   // print(getBufferCenter(buffer));
 
+  let pointAlongFromStreet = turf.along(virtualFromStreet, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
+  let bearings = [];
+
+  let debug_b = {};
   turf.featureEach(virtualStreets, (street, index) => {
 
-    // print("Comparing street\n");
-    // print("virtualFromStreet");
-    // print(virtualFromStreet);
-    // print("\nstreet to compare");
-    // print(street);
-    // print('\n');
 
-    //Included underscore lib to help out
+
+    //Dont calculate angles for the street you are walking on
     if (_.isEqual(virtualFromStreet, street)) {
-      print("Tengo la calle identica");
-      print(street);
+      return;
     }
-    // let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
 
+    print(index);
+    let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
+
+    let bearing = turf.bearing(pointAlongFromStreet, pointAlong);
+
+    street.properties.id = index;
+    street.properties.bearing = bearing;
+    bearings.push(street);
     // print("Along");
     // print(pointAlong);
 
-  })
+    debug_b[index] = bearing;
+
+  });
+
+  // print('bearings');
+  let collection = turf.featureCollection(bearings);
+  // print(collection);
+
+  // print("\n\ndebug");
+  // print(debug_b);
 
 
 
@@ -286,9 +301,6 @@ function getStreetsConnectedToIntersection(buffer) {
     let streetP2 = streetCoords[1];
 
     if (isSameCoords(streetP1, bufferCenterCoords) || isSameCoords(streetP2, bufferCenterCoords)) {
-      // console.log(`Encontre puntos iguales al buffer center`);
-      // console.log(`Buffer Center> ${toString(bufferCenter)}`);
-      // console.log(`Street> ${toString(street)}`);  
       connectedStreets.push(street);
     }
   });
@@ -835,6 +847,68 @@ function isSameCoords(p1, p2) {
 
 }
 
+
+
+
+function getTravelDirection(buffer, fromStreet) {
+
+
+  let streetPoint = turf.along(fromStreet, 20 / 1000, { units: 'kilometers' });
+  let bufferCenter = getBufferCenter(buffer);
+
+  let bearing = turf.bearing(bufferCenter, streetPoint);
+  // print('bearing');
+  // print(bearing);
+
+  let travelDirection;
+  if (bearing <= 120 && bearing > 116) {
+    travelDirection = orientation.WEST;
+  }
+
+  if (bearing >= -152 && bearing < -146) {
+    travelDirection = orientation.NORTH;
+  }
+
+  if (bearing >= -62 && bearing < -58) {
+    travelDirection = orientation.EAST;
+  }
+
+  if (bearing >= 26 && bearing < 30) {
+    travelDirection = orientation.SOUTH;
+  }
+
+
+  // print("Travel direction");
+  print(travelDirection);
+
+  return;
+
+
+  let p1 = {
+    x: 40.728233,
+    y: -73.986820
+  };
+
+  let p2 = {
+    x: 40.727826,
+    y: -73.985779
+  };
+
+
+  var p12 = Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2));
+
+  //angle in radians
+  var resultRadian = Math.acos(Math.pow(p12, 2));
+
+  //angle in degrees
+  var resultDegree = Math.acos((Math.pow(p12, 2))) * 180 / Math.PI;
+
+  print("Travel angle");
+  print(resultRadian);
+  print(resultDegree);
+
+
+}
 
 
 
