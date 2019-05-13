@@ -129,6 +129,13 @@ function enteredBuffer(buffer, fromStreet) {
   //calculate the directions of the available streets with regards of how you're entering the buffer
   let orientationOfConnectedStreets = getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection);
 
+  let travelDirections = calculateCommandFromDirections(orientationOfConnectedStreets);
+  let travelCommand = getFinalCommand(travelDirections);
+
+  print("-----------");
+  print(`Final Command ${travelCommand}\n`);
+
+  broadcastTravelCommand(travelCommand);
 
 
   return;
@@ -148,6 +155,27 @@ function enteredBuffer(buffer, fromStreet) {
 }
 
 
+function getFinalCommand(travelDirections) {
+
+  let randomIndex = Math.floor(Math.random() * travelDirections.length);
+  return travelDirections[randomIndex];
+
+
+}
+function calculateCommandFromDirections(directions) {
+
+  let commands = [];
+  directions.forEach(d => {
+
+    if (d === orientation.LEFT) commands.push('0');
+    if (d === orientation.STRAIGHT) commands.push('1');
+    if (d === orientation.RIGHT) commands.push('2');
+
+  });
+
+  return commands;
+
+}
 
 function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedToIntersection) {
 
@@ -162,25 +190,16 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   let pointAlongFromStreet = turf.along(virtualFromStreet, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
   let bearings = [];
 
-  let debug_b = {};
   turf.featureEach(virtualStreets, (street, index) => {
     //Dont calculate angles for the street you are walking on
     if (_.isEqual(virtualFromStreet, street)) {
       return;
     }
-
     //Todo, Add filter for walked streets here:
     //......if(walkedStreet) return;
 
-    print(index);
     let pointAlong = turf.along(street, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
-
     let bearing = turf.bearing(pointAlongFromStreet, pointAlong);
-
-    // street.properties.id = index;
-    // street.properties.bearing = bearing;
-    // bearings.push(street);
-    // debug_b[index] = bearing;
     bearings.push(bearing);
 
   });
@@ -189,15 +208,11 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   print(bearings);
 
   let travelDirection = getTravelDirection(buffer, virtualFromStreet);
-
   let bearingDirections = getDirectionsForBearings(travelDirection, bearings);
 
   print("bearing directions");
   print(bearingDirections);
-
-
-
-
+  return bearingDirections;
 }
 
 
@@ -246,10 +261,7 @@ function getDirectionsForBearings(travelDirections, bearings) {
     }
 
   });
-
   return directions;
-
-
 }
 
 
@@ -965,5 +977,9 @@ function broadcastIntersectionBuffers() {
 
 function broadcastContainingBuffer(containingBuffer) {
   io.emit(events.DISPLAY_ACTIVE_BUFFER, getFeatureName(containingBuffer));
+}
+
+function broadcastTravelCommand(command) {
+  io.emit(events.SEND_DIRECTIONS, command);
 }
 
