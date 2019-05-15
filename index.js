@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log('User connected');
 
-  geo.test();
+
 
   io.on('disconnected', (socket) => {
     console.log('User disconnected');

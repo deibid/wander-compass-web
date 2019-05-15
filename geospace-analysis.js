@@ -17,10 +17,6 @@ const RADIUS_FOR_INTERSECTION_BUFFER = 30 / 1000;
 const DISTANCE_FROM_INTERSECTION_FOR_BEARING = 30 / 1000;
 
 
-let mStreetLines = getStreetLines(_mapFeatures);
-let mIntersections = getIntersections(_mapFeatures);
-
-let mActiveBuffer;
 let mWasInBuffer = false;
 
 let mStreetsWalked = {
@@ -41,16 +37,10 @@ let mActiveIntersectionBuffers = {
 }
 
 
-
 module.exports.attachIO = function (_io) {
   io = _io;
 
 }
-
-module.exports.test = () => {
-  // console.log("Test function form another module");
-}
-
 
 module.exports.onNewLocation = function (msg) {
 
@@ -133,6 +123,7 @@ function enteredBuffer(buffer, fromStreet) {
   let travelCommand = getFinalCommand(travelDirections);
 
   print("-----------");
+  print(`Final options ${travelDirections}`);
   print(`Final Command ${travelCommand}\n`);
 
   broadcastTravelCommand(travelCommand);
@@ -140,46 +131,34 @@ function enteredBuffer(buffer, fromStreet) {
 
   return;
 
-  // let directions = calculateDirectionsViaCenters(availableStreets, fromStreet);
-
-  let directions = calculateDirectionsViaHardData(availableStreets, fromStreet);
-  let command = convertDirectionsToCommand(directions);
-
-  // console.log(`Estoy a punto de mandar al android ${toString(command)}`);
-  //Send a command to the phone if there are available streets
-  if (command !== -1) {
-    io.emit(events.SEND_DIRECTIONS, command);
-  }
-
-  mWasInBuffer = true;
 }
 
 
-function isSameStreet(street1, street2) {
+// function isSameStreet(street1, street2) {
 
-  let s1 = {
-    p1: turf.getCoords(street1)[0],
-    p2: turf.getCoords(street1)[1]
-  }
+//   let s1 = {
+//     p1: turf.getCoords(street1)[0],
+//     p2: turf.getCoords(street1)[1]
+//   }
 
-  let s2 = {
-    p1: turf.getCoords(street2)[0],
-    p2: turf.getCoords(street2)[1]
-  }
+//   let s2 = {
+//     p1: turf.getCoords(street2)[0],
+//     p2: turf.getCoords(street2)[1]
+//   }
 
-  if (isSameCoords(s1.p1, s2.p1)) {
-    if (isSameCoords(s1.p2, s2.p2)) {
-      return true;
-    }
-  }
+//   if (isSameCoords(s1.p1, s2.p1)) {
+//     if (isSameCoords(s1.p2, s2.p2)) {
+//       return true;
+//     }
+//   }
 
-  if (isSameCoords(s1.p1, s2.p2)) {
-    if (isSameCoords(s1.p2, s2.p1)) {
-      return true;
-    }
-  }
-  return false;
-}
+//   if (isSameCoords(s1.p1, s2.p2)) {
+//     if (isSameCoords(s1.p2, s2.p1)) {
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 
 
 
@@ -232,14 +211,12 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
 
   });
 
-  print('bearings');
-  print(bearings);
+
 
   let travelDirection = getTravelDirection(buffer, virtualFromStreet);
   let bearingDirections = getDirectionsForBearings(travelDirection, bearings);
 
-  print("bearing directions");
-  print(bearingDirections);
+
   return bearingDirections;
 }
 
@@ -247,30 +224,10 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
 function streetIsWalked(buffer, street) {
 
   let invertedStreet = getInvertedStreet(street);
-  print("Checking if walked Street")
-  print("Walked Streets");
-  print(mStreetsWalked.features);
-
-  print("Street")
-  print(street);
-
-  print("invertedStreet ");
-  print(invertedStreet);
-
-
-
   let filteredByStreet = mStreetsWalked.features.filter(s => turf.getCoords(s)[0] === turf.getCoords(street)[0] || turf.getCoords(s)[1] === turf.getCoords(street)[1]);
   let filteredByInvertedStreet = mStreetsWalked.features.filter(s => turf.getCoords(s)[0] === turf.getCoords(invertedStreet)[0] || turf.getCoords(s)[1] === turf.getCoords(invertedStreet)[1]);
 
-  print("filter by street length ");
-  print(filteredByStreet.length);
-
-  print("filter by inverted length ");
-  print(filteredByInvertedStreet.length);
-
-  print("------");
   return (filteredByStreet.length !== 0 || filteredByInvertedStreet.length !== 0);
-  // return (mStreetsWalked.features.indexOf(street) !== -1 || mStreetsWalked.features.indexOf(invertedStreet) !== -1) ? true : false;
 
 }
 
@@ -289,15 +246,13 @@ function getDirectionsForBearings(travelDirections, bearings) {
 
 
   let directions = [];
-  print("TRAVEL DIRECTIONS");
-  print(travelDirections);
+
   bearings.forEach(bearing => {
 
     switch (travelDirections) {
 
       case orientation.NORTH:
 
-        print("travel north");
         if (inRange(bearing, -15)) directions.push(orientation.LEFT);
         if (inRange(bearing, 29)) directions.push(orientation.STRAIGHT);
         if (inRange(bearing, -74)) directions.push(orientation.RIGHT);
@@ -436,284 +391,6 @@ function getStreetsConnectedToIntersection(buffer) {
 
 }
 
-function convertDirectionsToCommand(directions) {
-
-
-  let commandString = "";
-
-  directions.forEach(d => {
-
-    if (!d.walked) {
-      let orientationKey = getOrientationKey(d.orientation);
-      // console.log(`Orientation KEY rest- >>> ${orientationKey}`);
-      commandString = commandString.concat(orientationKey);
-      // console.log(`COmmand string ->        ${commandString}`);
-    }
-  });
-
-
-  if (commandString === "") return -1;
-
-
-  let finalCommand = getRandomTurnForDirection(commandString);
-
-  let instruction = {
-    "to": finalCommand
-  }
-  // console.log(`Random command ->>>>   \n${toString(instruction)}`);
-  return instruction;
-
-
-}
-
-function getRandomTurnForDirection(commandString) {
-
-
-  let options = commandString.length;
-  let randomIndex = Math.floor(Math.random() * options);
-
-  // console.log(`The random index is_> ${randomIndex}`);
-  return commandString.charAt(randomIndex);
-
-
-}
-
-function getOrientationKey(orientation) {
-
-  // console.log(`Get orientation Key -> ${orientation}`);
-
-  switch (orientation) {
-    case "left":
-      return "0";
-    case "straight":
-      return "1";
-    case "right":
-      return "2";
-    case "back":
-      return "3"
-
-  }
-
-
-}
-
-function calculateDirectionsViaHardData(availableStreets, fromStreet) {
-
-  let fromStreetName = getFeatureName(fromStreet);
-
-  // console.log(`Estoy por determinar la direccoin. Las calles disponibles son::::::\n\n\n\n${toString(availableStreets)}`);
-
-
-  let directions = [];
-
-  availableStreets.forEach(street => {
-
-    // console.log(`from Street Name -> ${fromStreetName} `);
-    // console.log(`Street to analyze \n\n${toString(street)}`);
-
-    let streetName = getFeatureName(street);
-
-    let orientation = (streetName === fromStreetName) ? "back" : street.properties.orientation[fromStreetName];
-    // let orientation = street.properties.orientation.fromStreetName;
-    let walked = mStreetsWalked.features.includes(street);
-
-    let obj = {
-      "streetName": streetName,
-      "orientation": orientation,
-      "walked": walked
-    };
-    //Only add the street as an option if it isn't to go back. Maybe someday I'll add another functionality to do this.
-    if (orientation !== "back") {
-      directions.push(obj);
-    }
-
-  });
-
-
-  // console.log(`Las instrucciones finales son::: \n\n${toString(directions)}`);
-
-  return directions;
-
-
-}
-
-function calculateDirectionsViaCenters(availableStreets, fromStreet) {
-
-  //calulcar centros.
-  //Hacer analisis de angulo con bearing
-  //armar objecto
-  //mandar hacia telefono
-
-  let streetCenters = getCentersForStreetAtIntersections(availableStreets, fromStreet);
-  // console.log(`Los centros son: \m ${toString(streetCenters)}`);
-
-  let fromStreetCenter = turf.getCoord(turf.center(fromStreet));
-
-  // let temp = streetCenters[1];
-  // streetCenters[1] = streetCenters[2];
-  // streetCenters[2] = temp;
-
-  let sorted = streetCenters.sort((a, b) => {
-    return a.properties.angle - b.properties.angle;
-  });
-
-  // console.log(`SORTED:_>   ${toString(sorted)}`);
-
-  // sorted.forEach(street => {
-  //   console.log(`STREET TO ASSIGN    ${toString(street)}`);
-  //   let walked = mStreetsWalked.features.includes(street);
-  //   street.walked = walked;
-  // });
-
-
-  // console.log(`Street with angle and status  ${toString(sorted)}`);
-  let directions = {};
-
-
-  // streetCenters.forEach(center => {
-
-
-
-
-  // });
-
-
-
-
-
-
-
-}
-
-
-function getCentersForStreetAtIntersections(availableStreets, fromStreet) {
-
-  let streetCenters = [];
-
-  availableStreets.forEach(street => {
-
-    if (getFeatureName(fromStreet) !== getFeatureName(street)) {
-      let name = getFeatureName(street);
-      let center = turf.center(street);
-      center.properties.name = name;
-
-      let walked = mStreetsWalked.features.includes(street);
-      center.properties.walked = walked;
-
-      let angle = turf.bearing(turf.center(fromStreet), turf.center(street));
-      center.properties.angle = angle;
-
-      center.properties.direction = getOrientationForAngle(angle);
-
-
-      streetCenters.push(center);
-      // let obj = {
-      //   // "name": name,
-      //   "center": turf;
-      // };
-      // streetCenters.centers.push(obj);
-    }
-  });
-  return streetCenters;
-}
-
-
-
-
-function getOrientationForAngle(angle) {
-
-
-  if (angle > 0) {
-
-
-  }
-
-
-  if (angle < 0) {
-
-    if (angle < 0 && angle >= -30) {
-      return "right";
-    } else if (angle < -30 && angle >= -80) {
-      return "straight";
-    } else if (angle < -80) {
-      return "left";
-    }
-
-  }
-
-
-
-
-
-}
-
-function getAvailableStreetsForDirections(streetsWalked, containingBuffer) {
-
-
-  let availableStreets = [];
-
-  let streetNamesAtIntersection = containingBuffer.properties.streets;
-  streetNamesAtIntersection.forEach(name => {
-    let street = getStreetByName(name);
-    availableStreets.push(street);
-  });
-
-
-
-  let temp = availableStreets.filter(street => !mStreetsWalked.features.includes(street));
-  // console.log(`Las calles NO caminadas para la interseccion ${containingBuffer.properties.name} son:__>   \n${toString(temp)}`);
-
-
-  let names = "";
-  temp.forEach(street => {
-    names += street.properties.name + " ";
-  });
-
-  // UI.displayAvailableStreets(names);
-  io.emit(events.DISPLAY_AVAILABLE_STREETS, names);
-
-  //Actualmente estoy regresando todas las calles en alguna interseccion dada, sin importar si ya la caminaste o no.
-  return availableStreets;
-
-}
-
-// function getStreetsForIntersection(containingBuffer) {
-
-// }
-
-function getPossibleStreetsNames(containingBuffer) {
-
-  return containingBuffer.properties.streets;
-
-
-}
-
-function getWalkedStreetNames() {
-
-  let streetsWalked_Names = [];
-  mStreetsWalked.featureEach((street, index) => {
-    streetsWalked_Names.push(street.properties.name);
-  });
-
-  return streetsWalked_Names;
-
-}
-function getAvailableStreets() {
-
-  let streetsWalkedNames = [];
-
-  turf.featureEach(mStreetsWalked, (currentFeature, futureIndex) => {
-    // console.log(`Esta calle ya se camino ${toString(currentFeature)}`);
-    let name = currentFeature.properties.name;
-    if (streetsWalkedNames.indexOf(name) === -1)
-      streetsWalkedNames.push(currentFeature.properties.name);
-  });
-
-  let availableStreetsForIntersection = mActiveBuffer.properties.streets;
-  let streetsNotWalked = availableStreetsForIntersection.filter(streetName => streetsWalkedNames.indexOf(streetName) !== 1);
-  // console.log(`Las calles disponibles para la interseccion ${mActiveBuffer.properties.name} son: ${streetsNotWalked}`);
-
-}
 
 
 function getContainingBuffer(snappedLocation) {
@@ -738,28 +415,18 @@ function getContainingBuffer(snappedLocation) {
 function getIntersectionBuffers(street) {
 
 
-  // console.log(`findIntersectionBuffers\ncalle->> ${toString(street)}`);
-
   //find the Points from the collection that match the street that is being walked
-  // let streetIntersections = getIntersectionsForStreetByName(street);
   let streetIntersections = getStreetCornerPoints(street);
 
   let pointA = streetIntersections[0];
   let pointB = streetIntersections[1];
 
-  // console.log(`Antes de hacer el buffer. Los puntos son: __> ${toString(pointA)} \n y ${toString(pointB)}`)
-
-
   let bufferA = turf.buffer(pointA, RADIUS_FOR_INTERSECTION_BUFFER, { 'units': 'kilometers' });
   let bufferB = turf.buffer(pointB, RADIUS_FOR_INTERSECTION_BUFFER, { 'units': 'kilometers' });
-
-
 
   let result = turf.featureCollection([bufferA, bufferB]);
 
   return result;
-
-
 }
 
 
@@ -780,46 +447,7 @@ function getStreetCornerPoints(street) {
 
   return [pointA, pointB];
 
-  // return 
-
-  // console.log(`getIntersectionForStreet`);
-  // console.log(`Street Name ${toString(street)}`);
-  // console.log(`mIntersections ${toString(mIntersections)}`);
-  let streetName = street.properties.name;
-  let streetIntersections = [];
-  mIntersections.features.forEach(intersection => {
-    if (intersection.properties.streets.indexOf(streetName) !== -1) {
-      streetIntersections.push(intersection);
-    };
-  });
-
-  return streetIntersections;
 }
-
-
-/**
-* Finds the two Point features that correspond to that street
-* @param {Street being walked} street 
-*/
-function getIntersectionsForStreetByName(street) {
-
-
-  // console.log(`getIntersectionForStreet`);
-  // console.log(`Street Name ${toString(street)}`);
-  // console.log(`mIntersections ${toString(mIntersections)}`);
-  let streetName = street.properties.name;
-  let streetIntersections = [];
-  mIntersections.features.forEach(intersection => {
-    if (intersection.properties.streets.indexOf(streetName) !== -1) {
-      streetIntersections.push(intersection);
-    };
-  });
-
-  return streetIntersections;
-}
-
-
-
 
 
 
@@ -841,10 +469,7 @@ function closestLineToPoint(_point, _mapFeatures) {
   let closestLine;
   let shortestDistance = 999999;
 
-  // console.log("antes de revisar");
-  // console.log(`mStreetLines:> ${toString(mStreetLines)}`);
-  turf.featureEach(mStreetLines, (currentLine, lineIndex) => {
-    // console.log("Estoy revisando");
+  turf.featureEach(_mapFeatures, (currentLine, lineIndex) => {
     let currentDistance = turf.pointToLineDistance(_point, currentLine, { 'units': 'meters' });
     if (currentDistance < shortestDistance) {
       closestLine = currentLine;
@@ -861,73 +486,6 @@ function getFeatureName(feature) {
 }
 
 
-function getStreetByName(name) {
-
-
-  let street;
-  mStreetLines.features.forEach(_street => {
-    // console.log(`Probando ${toString(_street)}`)
-    if (_street.properties.name === name) {
-      // console.log(`Paso la prueba`);
-      street = _street;
-    }
-  });
-
-  return street;
-
-
-}
-
-
-function getStreetLines(_mapFeatures) {
-
-  let streetLines = {
-    'features': [],
-    'type': "FeatureCollection"
-  }
-
-
-
-
-  turf.featureEach(_mapFeatures, (currentFeature, featureIndex) => {
-
-    if (turf.getType(currentFeature) === 'LineString') {
-      streetLines.features.push(currentFeature);
-    }
-  });
-
-
-  // _mapFeatures.features.forEach((currentFeature) => {
-  //   // if (turf.getType(currentFeature) === 'LineString') {
-  //   //   streetLines.features.push(currentFeature);
-  //   // }
-
-  //   if (currentFeature.type === 'LineString') {
-  //     streetLines.features.push(currentFeature);
-  //   }
-
-  // });
-
-  return streetLines;
-}
-
-function getIntersections(_mapFeatures) {
-
-  let intersections = {
-    'features': [],
-    'type': "FeatureCollection"
-  }
-
-  turf.featureEach(_mapFeatures, (currentFeature, featureIndex) => {
-
-    if (turf.getType(currentFeature) === 'Point') {
-      intersections.features.push(currentFeature);
-    }
-  });
-
-
-  return intersections;
-}
 
 
 function print(msg) {
@@ -982,8 +540,6 @@ function getTravelDirection(buffer, fromStreet) {
   let bufferCenter = getBufferCenter(buffer);
 
   let bearing = turf.bearing(bufferCenter, streetPoint);
-  // print('bearing');
-  // print(bearing);
 
   let travelDirection;
   if (bearing <= 120 && bearing > 116) {
@@ -1002,9 +558,6 @@ function getTravelDirection(buffer, fromStreet) {
     travelDirection = orientation.SOUTH;
   }
 
-
-  print("Travel direction");
-  print(travelDirection);
   return travelDirection;
 }
 
