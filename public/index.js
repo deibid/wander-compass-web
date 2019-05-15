@@ -28,8 +28,8 @@ function sendEvent() {
 let point1 = turf.point([-73.984304, 40.727956]);
 
 // let mStreetLines = getStreetLines(_mapFeatures);
-let mStreetLines = _mapFeatures;
-let mIntersections = getIntersections(_mapFeatures);
+// let mStreetLines = _mapFeatures;
+// let mIntersections = getIntersections(_mapFeatures);
 
 let mActiveBuffer;
 let mWasInBuffer = false;
