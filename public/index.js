@@ -14,9 +14,6 @@ const demoWalkPoints = [
   "straight",
   [-73.99414700316358, 40.73001878887299],
   [-73.99443761755607, 40.730161600701265],
-
-
-
 ];
 
 function sendEvent() {
@@ -129,7 +126,6 @@ let snappedLocationMarker = new mapboxgl.Marker({ "color": "#FA77C3" }).setLngLa
 liveLocationMarker.on('drag', onNewLocation);
 
 
-
 // Function executed when dragging. This will get changed to a live location pushed from the phone
 function onNewLocation() {
 
@@ -144,80 +140,6 @@ function onNewLocation() {
   socket.emit("new-location-from-phone", { "lng": liveLng, "lat": liveLat });
 
 }
-
-
-function getSnappedLocation(point) {
-
-  let closestStreet;
-  let shortestDistance = 99999999;
-
-  turf.featureEach(_mapFeatures, (currentLine, lineIndex) => {
-
-    let currentDistance = turf.pointToLineDistance(point, currentLine, { 'units': 'meters' });
-    if (currentDistance < shortestDistance) {
-      closestStreet = currentLine;
-      shortestDistance = currentDistance;
-    }
-  });
-
-
-  return turf.nearestPointOnLine(closestStreet, point, { 'units': 'meters' });
-
-}
-
-
-function closestLineToPoint(_point, _mapFeatures) {
-
-  let closestLine;
-  let shortestDistance = 99999999;
-
-
-  turf.featureEach(mStreetLines, (currentLine, lineIndex) => {
-    let currentDistance = turf.pointToLineDistance(_point, currentLine, { 'units': 'meters' });
-    if (currentDistance < shortestDistance) {
-      closestLine = currentLine;
-      shortestDistance = currentDistance;
-    }
-  });
-
-  return closestLine;
-}
-
-
-function getStreetLines(_mapFeatures) {
-
-  let streetLines = {
-    'features': [],
-    'type': "FeatureCollection"
-  }
-
-  turf.featureEach(_mapFeatures, (currentFeature, featureIndex) => {
-
-    if (turf.getType(currentFeature) === 'LineString') {
-      streetLines.features.push(currentFeature);
-    }
-  });
-
-  return streetLines;
-}
-
-function getIntersections(_mapFeatures) {
-
-  let intersections = {
-    'features': [],
-    'type': "FeatureCollection"
-  }
-
-  turf.featureEach(_mapFeatures, (currentFeature, featureIndex) => {
-
-    if (turf.getType(currentFeature) === 'Point') {
-      intersections.features.push(currentFeature);
-    }
-  });
-
-  return intersections;
-}
-
 
 
 function toString(Object) {
@@ -266,8 +188,9 @@ socket.on("send-location-markers", (msg) => {
   let real = msg.real;
   let snapped = msg.snapped;
 
+  liveLocationMarker.setLngLat(real);
   snappedLocationMarker.setLngLat(snapped);
-  // liveLocationMarker.setLngLat(real);
+
 
 });
 
