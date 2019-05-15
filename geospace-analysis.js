@@ -155,6 +155,34 @@ function enteredBuffer(buffer, fromStreet) {
 }
 
 
+function isSameStreet(street1, street2) {
+
+  let s1 = {
+    p1: turf.getCoords(street1)[0],
+    p2: turf.getCoords(street1)[1]
+  }
+
+  let s2 = {
+    p1: turf.getCoords(street2)[0],
+    p2: turf.getCoords(street2)[1]
+  }
+
+  if (isSameCoords(s1.p1, s2.p1)) {
+    if (isSameCoords(s1.p2, s2.p2)) {
+      return true;
+    }
+  }
+
+  if (isSameCoords(s1.p1, s2.p2)) {
+    if (isSameCoords(s1.p2, s2.p1)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+
 function getFinalCommand(travelDirections) {
 
   let randomIndex = Math.floor(Math.random() * travelDirections.length);
@@ -185,8 +213,6 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   let virtualStreets = getVirtualStreetsForIntersection(buffer, streetsConnectedToIntersection);
   let virtualFromStreet = convertStreetToVirtualStreet(buffer, fromStreet);
 
-
-
   let pointAlongFromStreet = turf.along(virtualFromStreet, DISTANCE_FROM_INTERSECTION_FOR_BEARING, { units: 'kilometers' });
   let bearings = [];
 
@@ -195,6 +221,8 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
     if (_.isEqual(virtualFromStreet, street)) {
       return;
     }
+
+    if (streetIsWalked(buffer, street)) return;
     //Todo, Add filter for walked streets here:
     //......if(walkedStreet) return;
 
@@ -215,6 +243,47 @@ function getOrientationOfConnectedStreets(buffer, fromStreet, streetsConnectedTo
   return bearingDirections;
 }
 
+
+function streetIsWalked(buffer, street) {
+
+  let invertedStreet = getInvertedStreet(street);
+  print("Checking if walked Street")
+  print("Walked Streets");
+  print(mStreetsWalked.features);
+
+  print("Street")
+  print(street);
+
+  print("invertedStreet ");
+  print(invertedStreet);
+
+
+
+  let filteredByStreet = mStreetsWalked.features.filter(s => turf.getCoords(s)[0] === turf.getCoords(street)[0] || turf.getCoords(s)[1] === turf.getCoords(street)[1]);
+  let filteredByInvertedStreet = mStreetsWalked.features.filter(s => turf.getCoords(s)[0] === turf.getCoords(invertedStreet)[0] || turf.getCoords(s)[1] === turf.getCoords(invertedStreet)[1]);
+
+  print("filter by street length ");
+  print(filteredByStreet.length);
+
+  print("filter by inverted length ");
+  print(filteredByInvertedStreet.length);
+
+  print("------");
+  return (filteredByStreet.length !== 0 || filteredByInvertedStreet.length !== 0);
+  // return (mStreetsWalked.features.indexOf(street) !== -1 || mStreetsWalked.features.indexOf(invertedStreet) !== -1) ? true : false;
+
+}
+
+
+function getInvertedStreet(street) {
+
+  let coords = turf.getCoords(street);
+  let p1 = coords[0];
+  let p2 = coords[1];
+
+  return turf.lineString([p2, p1]);
+
+}
 
 function getDirectionsForBearings(travelDirections, bearings) {
 
