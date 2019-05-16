@@ -126,7 +126,8 @@ function enteredBuffer(buffer, fromStreet) {
   print(`Final options ${travelDirections}`);
   print(`Final Command ${travelCommand}\n`);
 
-  broadcastTravelCommand(travelCommand);
+  let instruction = { "to": travelCommand };
+  broadcastTravelCommand(instruction);
 
 
   return;
